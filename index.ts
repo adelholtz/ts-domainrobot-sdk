@@ -16,7 +16,7 @@ app.get('/', (req, res) => {
 
 app.get('/domainlist', async (req, res) => {
     let domainRobot = new DomainRobot({
-        url: 'http://dev-proxy-lab.intern.autodns-lab.com:10025',
+        url: 'https://api.demo.autodns.com/v1',
         auth: {
             user: 'root',
             password: 'test',
