@@ -1,52 +1,84 @@
 import express from 'express'
+// third party imports
+import dotenv from 'dotenv'
+import { path } from 'ramda'
+
+// custom imports
+import { DomainRobotResult, DomainRobotModels, JsonResponseDataContact, DomainRobotException, JsonResponseDataPollMessage } from 'js-domainrobot-sdk'
+import ContactCreate from './src/ContactCreate'
+import ContactListInquire from './src/ContactList'
+import {confirm, poll} from './src/Polling'
+
+dotenv.config();
+
 const app = express()
-const port = 8080 // default port to listen
+const port = process.env.APP_PORT
 
-import {
-    DomainRobot,
-    DomainRobotModels,
-    DomainRobotResult,
-    JsonResponseDataDomain
-} from 'js-domainrobot-sdk'
 
-// define a route handler for the default home page
+// basic route for testing purposes
 app.get('/', (req, res) => {
     res.send('Hello world!')
 })
 
-app.get('/domainlist', async (req, res) => {
-    let domainRobot = new DomainRobot({
-        url: 'http://dev-proxy-lab.intern.autodns-lab.com:10025',
-        auth: {
-            user: 'root',
-            password: 'test',
-            context: 1,
-        },
-    })
+// ------------------
+// important routes 
 
-    let queryFilter = new DomainRobotModels.QueryFilter({
-        key: 'sld',
-        value: 'example%',
-        operator: 'LIKE',
-    })
-    let query = new DomainRobotModels.Query({
-        filters: [queryFilter],
-        view: {
-            children: true,
-        },
-    })
-
-    let result: DomainRobotResult<JsonResponseDataDomain, Number>
+app.get('/poll', async (req, res) => {
+    let result: DomainRobotResult<JsonResponseDataPollMessage, number>
+    // numer of messages in the polling queue
+    let summary: number
 
     try {
-        result = await domainRobot.domain().cancelationList(query);
-        //result = await domainRobot.domain().info("blub.de")
-        console.log(result);
+        // check if we have messages in the PollMessage queue
+        const pollResult = await poll()
+        summary = path(['result', 'object', 'summary'], pollResult) || 0
+
+        // every poll returns exactly 1 PollMessage if there is one waiting in the PollMessage queue
+        const pollMesage: DomainRobotModels.PollMessage =
+            path(['result', 'data', '0'], pollResult) || new DomainRobotModels.PollMessage()
+
+        // ------
+        // do something with the DomainRobotModels.PollMessage here
+        // set a registered domain to ready in an interface for example
+        // or inform your customer about the successfull update/create ...
+        // ------
+
+        // finally, to clear the message out of the PollMessage queue we need to confirm it
+        // otherwise it will show up again and again
+        // in this example we confirm the pollMessage regardless if we received a valid 
+        // object back from the info() command
+        // in this example if we don't get a valid message out of the queue we send a
+        // confirm with the id 0. We get a message back saying that there was nothing to confirm
+        // or that the message we wanted to confirm could not be found (http status code 400)
+        result = await confirm(pollMesage)
+    } catch (DomainRobotException) {
+        result = DomainRobotException;
+    }
+    res.status(result.status).send(result)
+})
+
+app.get('/contact/create', async (req, res) => {
+    let result: DomainRobotResult<JsonResponseDataContact, number> | DomainRobotException;
+
+    try{
+        result = await ContactCreate()
+    }catch(DomainRobotException){
+        result = DomainRobotException;
+    }
+
+    res.status(result.status).send(result);
+})
+
+app.get('/contactlist', async (req, res) => {
+    let result: DomainRobotResult<JsonResponseDataContact, number> | DomainRobotException;
+
+    try {
+        result =  await ContactListInquire()
     } catch (DomainRobotException) {
         result = DomainRobotException;
     }
 
-    res.send(result)
+    res.status(result.status).send(result)
 })
 
 // start the Express server
