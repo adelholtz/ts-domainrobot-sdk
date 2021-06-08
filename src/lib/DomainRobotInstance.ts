@@ -9,6 +9,9 @@ export default function(): DomainRobot {
             password: process.env.AUTODNS_PW || '',
             context: parseInt(process.env.AUTODNS_CONTEXT || '4'),
         },
+        logRequestCallback: function (requestOptions: any, headers: any) {
+            console.log(requestOptions, headers)
+        },
     })
 
     return domainRobot

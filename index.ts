@@ -4,11 +4,11 @@ import dotenv from 'dotenv'
 import { path } from 'ramda'
 
 // custom imports
-import { DomainRobotResult, DomainRobotModels, JsonResponseDataContact, DomainRobotException, JsonResponseDataPollMessage } from 'js-domainrobot-sdk'
+import { DomainRobot, DomainRobotResult, DomainRobotModels, JsonResponseDataContact, DomainRobotException, JsonResponseDataPollMessage } from 'js-domainrobot-sdk'
 import ContactCreate from './src/ContactCreate'
 import ContactListInquire from './src/ContactList'
 import {confirm, poll} from './src/Polling'
-
+import createDomainRobotInstance from './src/lib/DomainRobotInstance'
 dotenv.config();
 
 const app = express()
@@ -18,6 +18,18 @@ const port = process.env.APP_PORT
 // basic route for testing purposes
 app.get('/', (req, res) => {
     res.send('Hello world!')
+})
+
+app.get('/domain/:domain', async(req, res) => {
+    const domainRobot: DomainRobot = createDomainRobotInstance();
+    let result;
+    try {
+        result = await domainRobot.domain().info(req.params.domain)
+    } catch (DomainRobotException) {
+        result = DomainRobotException;
+    }
+
+    res.status(result.status).send(result)
 })
 
 // ------------------
